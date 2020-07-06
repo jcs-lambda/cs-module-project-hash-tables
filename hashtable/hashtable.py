@@ -172,7 +172,10 @@ class HashTable:
             if key == current_entry.key:
                 break
             current_entry = current_entry.next
-        return current_entry.value
+        
+        if key == current_entry.key:
+            return current_entry.value
+
 
 
     def resize(self, new_capacity):
