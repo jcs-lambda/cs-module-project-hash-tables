@@ -49,14 +49,22 @@ class HashTable:
         pass
 
 
-    def fnv1(self, key):
+    def fnv1(self, key:str) -> int:
         """
         FNV-1 Hash, 64-bit
 
         Implement this, and/or DJB2.
         """
-        # Your code here
-        pass
+        # string to list of character encodings
+        key_codes = key.encode()
+
+        # https://en.wikipedia.org/wiki/Fowler–Noll–Vo_hash_function#FNV-1_hash
+        hash = 14695981039346656037
+        for code in key_codes:
+            hash = hash * 1099511628211
+            hash = hash ^ code
+
+        return hash
 
 
     def djb2(self, key:str) -> int:
@@ -65,7 +73,7 @@ class HashTable:
 
         Implement this, and/or FNV-1.
         """
-        # sting to list of character encodings
+        # string to list of character encodings
         key_codes = key.encode()
 
         # http://www.cse.yorku.ca/~oz/hash.html
