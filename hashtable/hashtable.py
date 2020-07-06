@@ -59,14 +59,24 @@ class HashTable:
         pass
 
 
-    def djb2(self, key):
+    def djb2(self, key:str) -> int:
         """
         DJB2 hash, 32-bit
 
         Implement this, and/or FNV-1.
         """
-        # Your code here
-        pass
+        # sting to list of character encodings
+        key_codes = key.encode()
+
+        # http://www.cse.yorku.ca/~oz/hash.html
+        hash = 5381
+        for code in key_codes:
+            # version 1
+            # hash = ((hash << 5) + hash) + code
+            # version 2
+            hash = hash * 33 + code
+
+        return hash
 
 
     def hash_index(self, key):
