@@ -113,16 +113,22 @@ class HashTable:
         Implement this.
         """
         current_entry = self._storage[self.hash_index(key)]
+        increment_load = 1
+        while current_entry.next is not None:
+            increment_load = 0
+            if key == current_entry.key:
+                break
+            current_entry = current_entry.next
+
         if current_entry.key is None:
-            # not a collision, store key and value
             current_entry.key = key
             current_entry.value = value
-            self._load_factor = self._load_factor + (1 / self.capacity)
+        elif key == current_entry.key:
+            current_entry.value = value
         else:
-            # collision occured, iterate to end of linked list and add new entry
-            while current_entry.next is not None:
-                current_entry = current_entry.next
             current_entry.next = HashTableEntry(key, value)
+        
+        self._load_factor = self._load_factor + (increment_load / self.capacity)
 
 
     def delete(self, key):
@@ -133,8 +139,24 @@ class HashTable:
 
         Implement this.
         """
-        # Your code here
-        pass
+        current_entry = self._storage[self.hash_index(key)]
+        decrement_load = 1
+        while current_entry.next is not None:
+            decrement_load = 0
+            if key == current_entry.key:
+                break
+            current_entry = current_entry.next
+        
+        if current_entry.next is not None:
+            current_entry.key = current_entry.next.key
+            current_entry.value = current_entry.next.value
+            current_entry.next = current_entry.next.next
+        else:
+            current_entry.key = None
+            current_entry.value = None
+            current_entry.next = None
+
+        self._load_factor = self._load_factor - (decrement_load / self.capacity)
 
 
     def get(self, key):
