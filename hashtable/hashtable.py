@@ -130,6 +130,8 @@ class HashTable:
             current_entry.next = HashTableEntry(key, value)
         
         self._load_factor = self._load_factor + (increment_load / self.capacity)
+        if self._load_factor > 0.7:
+            self.resize(self.capacity * 2)
 
 
     def delete(self, key):
@@ -158,7 +160,8 @@ class HashTable:
             current_entry.next = None
 
         self._load_factor = self._load_factor - (decrement_load / self.capacity)
-
+        if self._load_factor < 0.2 and (self.capacity + 1) // 2 >= 8:
+            self.resize((self.capacity + 1) // 2)
 
     def get(self, key):
         """
