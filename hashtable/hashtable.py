@@ -115,7 +115,6 @@ class HashTable:
         current_entry = self._storage[self.hash_index(key)]
         increment_load = 1
         while current_entry.next is not None:
-            increment_load = 0
             if key == current_entry.key:
                 break
             current_entry = current_entry.next
@@ -124,8 +123,10 @@ class HashTable:
             current_entry.key = key
             current_entry.value = value
         elif key == current_entry.key:
+            increment_load = 0
             current_entry.value = value
         else:
+            increment_load = 0
             current_entry.next = HashTableEntry(key, value)
         
         self._load_factor = self._load_factor + (increment_load / self.capacity)
