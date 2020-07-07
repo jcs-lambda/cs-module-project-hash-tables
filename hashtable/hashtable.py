@@ -20,20 +20,15 @@ class HashTable:
     Implement this.
     """
 
-    def __init__(self, capacity, hash:str = 'fnv1'):
-        # validate and store capacity
+    def __init__(self, capacity, hash='fnv1'):
         if capacity < MIN_CAPACITY:
-            raise(ValueError(f'capacity must be at least {MIN_CAPACITY}'))
-        self.capacity = capacity
-
-        # initialize hashing function
+            raise(ValueError(f'capacity must be at lest {MIN_CAPACITY}'))
+        
         self.hash = self.__getattribute__(hash)
 
-        # initialize storage
-        self._storage = [HashTableEntry(None, None) for _ in range(capacity)]
-
-        # initialize load_factor
+        self.capacity = capacity
         self._load_factor = 0.0
+        self._storage = [HashTableEntry(None, None) for _ in range(capacity)]
 
 
     def get_num_slots(self) -> int:
@@ -49,7 +44,8 @@ class HashTable:
         return self.capacity
 
 
-    def get_load_factor(self) -> float:
+    @property
+    def load_factor(self) -> float:
         """
         Return the load factor for this hash table.
 
@@ -58,7 +54,20 @@ class HashTable:
         return self._load_factor
 
 
-    def fnv1(self, key:str) -> int:
+    @load_factor.setter
+    def load_factor(self, value:float):
+        if value < self._load_factor and value < 0.2 and self.capacity > MIN_CAPACITY:
+            # shrunk and too many open slots; resize by half (no less than MIN_CAPACITY)
+            self.resize(max((self.capacity + 1) // 2, MIN_CAPACITY))
+        elif value > self._load_factor and value > 0.7:
+            # grown and too many used slots; double size
+            self.resize(self.capacity * 2)
+        else:
+            # new load_factor ok; update load_factor
+            self._load_factor = value
+
+
+    def fnv1(self, key) -> int:
         """
         FNV-1 Hash, 64-bit
 
@@ -70,13 +79,12 @@ class HashTable:
         # https://en.wikipedia.org/wiki/Fowler–Noll–Vo_hash_function#FNV-1_hash
         hash = 14695981039346656037
         for code in key_codes:
-            hash = hash * 1099511628211
-            hash = hash ^ code
+            hash = (hash * 1099511628211) ^ code
 
-        return hash
+        return hash & 0xffffffffffffffff
 
 
-    def djb2(self, key:str) -> int:
+    def djb2(self, key) -> int:
         """
         DJB2 hash, 32-bit
 
@@ -88,15 +96,12 @@ class HashTable:
         # http://www.cse.yorku.ca/~oz/hash.html
         hash = 5381
         for code in key_codes:
-            # version 1
-            # hash = ((hash << 5) + hash) + code
-            # version 2
-            hash = hash * 33 + code
+            hash = (((hash << 5) + hash) + code)
 
-        return hash
+        return hash & 0xffffffff
 
 
-    def hash_index(self, key) -> int:
+    def hash_index(self, key):
         """
         Take an arbitrary key and return a valid integer index
         between within the storage capacity of the hash table.
@@ -112,26 +117,30 @@ class HashTable:
 
         Implement this.
         """
+        if not isinstance(key, str):
+            raise(TypeError('Keys must be strings.'))
+
         current_entry = self._storage[self.hash_index(key)]
-        increment_load = 1
-        while current_entry.next is not None:
-            if key == current_entry.key:
-                break
-            current_entry = current_entry.next
 
         if current_entry.key is None:
+            # empty bucket; set key and value
             current_entry.key = key
             current_entry.value = value
-        elif key == current_entry.key:
-            increment_load = 0
-            current_entry.value = value
         else:
-            increment_load = 0
-            current_entry.next = HashTableEntry(key, value)
+            # hash collision; traverse list
+            while current_entry is not None:
+                if key == current_entry.key:
+                    # key exists; update value, return previous value
+                    old_value = current_entry.value
+                    current_entry.value = value
+                    return old_value
+                previous_entry = current_entry
+                current_entry = current_entry.next
+            # end of list and key not found; insert new entry
+            previous_entry.next = HashTableEntry(key, value)
         
-        self._load_factor = self._load_factor + (increment_load / self.capacity)
-        if self._load_factor > 0.7:
-            self.resize(self.capacity * 2)
+        # inserted new entry; update load_factor 
+        self.load_factor += (1 / self.capacity)
 
 
     def delete(self, key):
@@ -142,26 +151,44 @@ class HashTable:
 
         Implement this.
         """
-        current_entry = self._storage[self.hash_index(key)]
-        decrement_load = 1
-        while current_entry.next is not None:
-            decrement_load = 0
-            if key == current_entry.key:
-                break
-            current_entry = current_entry.next
-        
-        if current_entry.next is not None:
-            current_entry.key = current_entry.next.key
-            current_entry.value = current_entry.next.value
-            current_entry.next = current_entry.next.next
-        else:
-            current_entry.key = None
-            current_entry.value = None
-            current_entry.next = None
+        if not isinstance(key, str):
+            raise(TypeError('Keys must be strings.'))
 
-        self._load_factor = self._load_factor - (decrement_load / self.capacity)
-        if self._load_factor < 0.2 and (self.capacity + 1) // 2 >= 8:
-            self.resize((self.capacity + 1) // 2)
+        index = self.hash_index(key)
+        current_entry = self._storage[index]
+        value = None
+
+        if key == current_entry.key:
+            # found key, first entry; store value, erase entry
+            value = current_entry.value
+            if current_entry.next is None:
+                # no more entries; erase current entry
+                current_entry.key = current_entry.value = None
+            else:
+                # more entries; replace head with next
+                self._storage[index] = current_entry.next
+        else:
+            # traverse remaining entries
+            previous_entry = current_entry
+            current_entry = current_entry.next
+            while current_entry is not None:
+                if key == current_entry.key:
+                    # found key; store value, unlink entry
+                    value = current_entry.value
+                    previous_entry.next = current_entry.next
+                    break
+                previous_entry = current_entry
+                current_entry = current_entry.next
+
+        if value is not None:
+            # deleted an entry; update load_factor
+            self._load_factor -= (1 / self.capacity)
+        else:
+            # key not found
+            print(f'Key not found: {key}')
+        
+        return value
+
 
     def get(self, key):
         """
@@ -171,15 +198,15 @@ class HashTable:
 
         Implement this.
         """
-        current_entry = self._storage[self.hash_index(key)]
-        while current_entry.next is not None:
-            if key == current_entry.key:
-                break
-            current_entry = current_entry.next
-        
-        if key == current_entry.key:
-            return current_entry.value
+        if not isinstance(key, str):
+            raise(TypeError('Keys must be strings.'))
 
+        current_entry = self._storage[self.hash_index(key)]
+
+        while current_entry is not None:
+            if key == current_entry.key:
+                return current_entry.value
+            current_entry = current_entry.next
 
 
     def resize(self, new_capacity):
@@ -191,13 +218,12 @@ class HashTable:
         """
         old_storage = self._storage
         self.__init__(new_capacity, hash=self.hash.__name__)
-        for entry in old_storage:
-            current_entry = entry
-            while current_entry.next is not None:
+
+        for bucket in old_storage:
+            current_entry = bucket
+            while current_entry is not None and current_entry.key is not None:
                 self.put(current_entry.key, current_entry.value)
                 current_entry = current_entry.next
-            if current_entry.key is not None:
-                self.put(current_entry.key, current_entry.value)
 
 
 if __name__ == "__main__":
