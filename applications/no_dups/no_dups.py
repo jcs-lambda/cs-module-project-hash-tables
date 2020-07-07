@@ -1,5 +1,5 @@
-def no_dups(s:str, max:int = 1000):
-    storage = [False] * max
+def no_dups(s:str):
+    seen = set()
     first = True
     last_index = len(s) - 1
     output = ''
@@ -12,14 +12,13 @@ def no_dups(s:str, max:int = 1000):
             hash = hash * 1099511628211
             hash = hash ^ ord(x)
         if  x == ' ' or i == last_index:
-            index = hash % max
-            if not storage[index]:
+            if hash not in seen:
                 if not first:
                     output += ' '
                 else:
                     first = not first
                 output += word
-                storage[index] = True
+                seen.add(hash)
             word = ''
             hash = 14695981039346656037
 
