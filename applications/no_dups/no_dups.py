@@ -1,26 +1,25 @@
+class Spacer:
+    """.get() method returns '' on first call, subsequent calls return ' '."""
+    def __init__(self):
+        self.get = self._blank
+    
+    def _blank(self) -> str:
+        self.get = self._space
+        return ''
+
+    def _space(self) -> str:
+        return ' '
+
+
 def no_dups(s:str):
     seen = set()
-    first = True
-    last_index = len(s) - 1
     output = ''
-    word = ''
-    hash = 14695981039346656037
+    spacer = Spacer()
 
-    for i, x in enumerate(s):
-        if x != ' ':
-            word += x
-            hash = hash * 1099511628211
-            hash = hash ^ ord(x)
-        if  x == ' ' or i == last_index:
-            if hash not in seen:
-                if not first:
-                    output += ' '
-                else:
-                    first = not first
-                output += word
-                seen.add(hash)
-            word = ''
-            hash = 14695981039346656037
+    for word in s.split():
+        if word not in seen:
+            output = spacer.get().join([output, word])
+            seen.add(word)
 
     return output        
 
