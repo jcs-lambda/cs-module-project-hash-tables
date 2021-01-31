@@ -1,6 +1,7 @@
-def no_dups(s):
-    # Your code here
+from collections import OrderedDict
 
+def no_dups(s:str):
+    return ' '.join(OrderedDict(zip(s.split(), s)).keys())
 
 
 if __name__ == "__main__":

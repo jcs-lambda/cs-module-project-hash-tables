@@ -1,5 +1,17 @@
+import re
+
+ignore = re.compile(r'[]":;,.+=/\\|[{}()*^&-]')
+
 def word_count(s):
-    # Your code here
+    s = ignore.sub('', s.lower()).split()
+    word_count = {}
+    for w in s:
+        if w not in word_count:
+            word_count[w] = 1
+        else:
+            word_count[w] += 1
+
+    return word_count
 
 
 

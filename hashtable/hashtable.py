@@ -20,11 +20,18 @@ class HashTable:
     Implement this.
     """
 
-    def __init__(self, capacity):
-        # Your code here
+    def __init__(self, capacity, hash='fnv1'):
+        if capacity < MIN_CAPACITY:
+            raise(ValueError(f'capacity must be at lest {MIN_CAPACITY}'))
+        
+        self.hash = self.__getattribute__(hash)
+
+        self.capacity = capacity
+        self._load_factor = 0.0
+        self._storage = [HashTableEntry(None, None) for _ in range(capacity)]
 
 
-    def get_num_slots(self):
+    def get_num_slots(self) -> int:
         """
         Return the length of the list you're using to hold the hash
         table data. (Not the number of items stored in the hash table,
@@ -34,35 +41,64 @@ class HashTable:
 
         Implement this.
         """
-        # Your code here
+        return self.capacity
 
 
-    def get_load_factor(self):
+    @property
+    def load_factor(self) -> float:
         """
         Return the load factor for this hash table.
 
         Implement this.
         """
-        # Your code here
+        return self._load_factor
 
 
-    def fnv1(self, key):
+    @load_factor.setter
+    def load_factor(self, value:float):
+        if value < self._load_factor and value < 0.2 and self.capacity > MIN_CAPACITY:
+            # shrunk and too many open slots; resize by half (no less than MIN_CAPACITY)
+            self.resize(max((self.capacity + 1) // 2, MIN_CAPACITY))
+        elif value > self._load_factor and value > 0.7:
+            # grown and too many used slots; double size
+            self.resize(self.capacity * 2)
+        else:
+            # new load_factor ok; update load_factor
+            self._load_factor = value
+
+
+    def fnv1(self, key) -> int:
         """
         FNV-1 Hash, 64-bit
 
         Implement this, and/or DJB2.
         """
+        # string to list of character encodings
+        key_codes = key.encode()
 
-        # Your code here
+        # https://en.wikipedia.org/wiki/Fowler–Noll–Vo_hash_function#FNV-1_hash
+        hash = 14695981039346656037
+        for code in key_codes:
+            hash = (hash * 1099511628211) ^ code
+
+        return hash & 0xffffffffffffffff
 
 
-    def djb2(self, key):
+    def djb2(self, key) -> int:
         """
         DJB2 hash, 32-bit
 
         Implement this, and/or FNV-1.
         """
-        # Your code here
+        # string to list of character encodings
+        key_codes = key.encode()
+
+        # http://www.cse.yorku.ca/~oz/hash.html
+        hash = 5381
+        for code in key_codes:
+            hash = (((hash << 5) + hash) + code)
+
+        return hash & 0xffffffff
 
 
     def hash_index(self, key):
@@ -70,8 +106,8 @@ class HashTable:
         Take an arbitrary key and return a valid integer index
         between within the storage capacity of the hash table.
         """
-        #return self.fnv1(key) % self.capacity
-        return self.djb2(key) % self.capacity
+        return self.hash(key) % self.capacity
+
 
     def put(self, key, value):
         """
@@ -81,7 +117,30 @@ class HashTable:
 
         Implement this.
         """
-        # Your code here
+        if not isinstance(key, str):
+            raise(TypeError('Keys must be strings.'))
+
+        current_entry = self._storage[self.hash_index(key)]
+
+        if current_entry.key is None:
+            # empty bucket; set key and value
+            current_entry.key = key
+            current_entry.value = value
+        else:
+            # hash collision; traverse list
+            while current_entry is not None:
+                if key == current_entry.key:
+                    # key exists; update value, return previous value
+                    old_value = current_entry.value
+                    current_entry.value = value
+                    return old_value
+                previous_entry = current_entry
+                current_entry = current_entry.next
+            # end of list and key not found; insert new entry
+            previous_entry.next = HashTableEntry(key, value)
+        
+        # inserted new entry; update load_factor 
+        self.load_factor += (1 / self.capacity)
 
 
     def delete(self, key):
@@ -92,7 +151,43 @@ class HashTable:
 
         Implement this.
         """
-        # Your code here
+        if not isinstance(key, str):
+            raise(TypeError('Keys must be strings.'))
+
+        index = self.hash_index(key)
+        current_entry = self._storage[index]
+        value = None
+
+        if key == current_entry.key:
+            # found key, first entry; store value, erase entry
+            value = current_entry.value
+            if current_entry.next is None:
+                # no more entries; erase current entry
+                current_entry.key = current_entry.value = None
+            else:
+                # more entries; replace head with next
+                self._storage[index] = current_entry.next
+        else:
+            # traverse remaining entries
+            previous_entry = current_entry
+            current_entry = current_entry.next
+            while current_entry is not None:
+                if key == current_entry.key:
+                    # found key; store value, unlink entry
+                    value = current_entry.value
+                    previous_entry.next = current_entry.next
+                    break
+                previous_entry = current_entry
+                current_entry = current_entry.next
+
+        if value is not None:
+            # deleted an entry; update load_factor
+            self._load_factor -= (1 / self.capacity)
+        else:
+            # key not found
+            print(f'Key not found: {key}')
+        
+        return value
 
 
     def get(self, key):
@@ -103,7 +198,15 @@ class HashTable:
 
         Implement this.
         """
-        # Your code here
+        if not isinstance(key, str):
+            raise(TypeError('Keys must be strings.'))
+
+        current_entry = self._storage[self.hash_index(key)]
+
+        while current_entry is not None:
+            if key == current_entry.key:
+                return current_entry.value
+            current_entry = current_entry.next
 
 
     def resize(self, new_capacity):
@@ -113,8 +216,14 @@ class HashTable:
 
         Implement this.
         """
-        # Your code here
+        old_storage = self._storage
+        self.__init__(new_capacity, hash=self.hash.__name__)
 
+        for bucket in old_storage:
+            current_entry = bucket
+            while current_entry is not None and current_entry.key is not None:
+                self.put(current_entry.key, current_entry.value)
+                current_entry = current_entry.next
 
 
 if __name__ == "__main__":
